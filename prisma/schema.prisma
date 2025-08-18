@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum pokemonType{
+  NORMAL
+  FIRE
+  WATER
+  GRASS
+  ELECTRIC
+  ICE
+  FIGHTING
+  POISON
+  GROUND
+  FLYING
+  PSYCHIC
+  BUG
+  ROCK
+  GHOST
+  DARK
+  DRAGON
+  STEEL
+  FAIRY
+}
+
+model Pokemon {
+  id         Int               @id @default(autoincrement())
+  name       String            @unique
+  type       PokemonType
+  height     Float             @default(0)
+  weight     Float             @default(0)
+  imageUrl   String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  abilities  PokemonAbility[]
+}
+
+model ability {
+  id        Int               @id @default(autoincrement())
+  name      String            @unique
+  pokemons  PokemonAbility[]
+}
+
+model PokemonAbility {
+  pokemonId Int
+  abilityId Int
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  ability   Ability @relation(fields: [abilityId], references: [id], onDelete: Cascade)
+
+  @@id([pokemonId, abilityId])
+}
