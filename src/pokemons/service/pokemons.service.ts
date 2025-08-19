@@ -11,7 +11,7 @@ export class PokemonsService {
 
     async create(dto: CreatePokemonDto){
         const exists = await this.prisma.pokemon.findFirst({
-            where: {name : { equal:dto.name, mode: 'insensitive' } },
+            where: {name : { equals: dto.name, mode: 'insensitive' } },
         });
         if (exists) throw new ConflictException("Pokemon name already exists");
 
@@ -77,7 +77,7 @@ export class PokemonsService {
 
         if (dto.name) {
             const dup = await this.prisma.pokemon.findFirst({
-                where : { id: { nor: id }, name: { equal:dto.name, mode: 'insensitive' } },
+                where : { id: { not: id }, name: { equals:dto.name, mode: 'insensitive' } },
             });
             if (dup) throw new ConflictException("Pokemon name already exists");
         }
@@ -87,7 +87,7 @@ export class PokemonsService {
             const abilities = await this.prepareAbilities(dto.abilities);
             abilitiesData = {
                 deleteMany: {},
-                create: abilities.map (a => ({ abilitiyId: a.id})),
+                create: abilities.map (a => ({ abilityId: a.id})),
             }
         }
 
@@ -112,7 +112,7 @@ export class PokemonsService {
     }
 
     private async ensureExists(id: number) {
-        const found = await this.prisma.pokemon.findUniqye({ where :{ id } });
+        const found = await this.prisma.pokemon.findUnique({ where :{ id } });
         if (!found) throw new NotFoundException("Pokemon not found");
     }
 
@@ -124,7 +124,7 @@ export class PokemonsService {
                 where: { name: { equals: name, mode: 'insensitive' } },
             });
             if (existing) abilities.push(existing);
-            else abilities.push(await this.prisma.ability.creare({ data: { name }}));
+            else abilities.push(await this.prisma.ability.create({ data: { name }}));
         }
         return abilities;
     }
