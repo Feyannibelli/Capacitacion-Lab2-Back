@@ -4,9 +4,9 @@ const prisma = new PrismaClient();
 async function main(){
     // crea o reautiliza 3 habilidades base con upsert
     const [overgrow, blaze, torrent] = await prisma.$transaction([
-        prisma.ability.upsert({ where: { name: 'Overgrow' }, update: {}, creat: { name: 'Overgrow' } }),
-        prisma.ability.upsert({ where: { name: 'Blaze' }, update: {}, creat: { name: 'Blaze' } }),
-        prisma.ability.upsert({ where: { name: 'Torrent' }, update: {}, creat: { name: 'Torrent' } }),
+        prisma.ability.upsert({ where: { name: 'Overgrow' }, update: {}, create: { name: 'Overgrow' } }),
+        prisma.ability.upsert({ where: { name: 'Blaze' }, update: {}, create: { name: 'Blaze' } }),
+        prisma.ability.upsert({ where: { name: 'Torrent' }, update: {}, create: { name: 'Torrent' } }),
     ])
 
     // creo 3 tipos de pokemons al iniciar

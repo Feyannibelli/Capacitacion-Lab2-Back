@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum PokemonType{
+enum PokemonType {
   NORMAL
   FIRE
   WATER
@@ -40,7 +40,7 @@ model Pokemon {
   abilities  PokemonAbility[]
 }
 
-model ability {
+model Ability {
   id        Int               @id @default(autoincrement())
   name      String            @unique
   pokemons  PokemonAbility[]
@@ -49,6 +49,7 @@ model ability {
 model PokemonAbility {
   pokemonId Int
   abilityId Int
+
   pokemon   Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
   ability   Ability @relation(fields: [abilityId], references: [id], onDelete: Cascade)
 
