@@ -3,7 +3,8 @@ import { PrismaService} from "../../prisma/prisma.service";
 import { CreatePokemonDto} from "../dto/create-pokemon.dto";
 import { UpdatePokemonDto } from "../dto/update-pokemon.dto";
 import { ListPokemonsQuery  } from "../dto/list-pokemon.dto";
-import {PokemonType, Prisma} from '@prisma/client'
+import { Prisma } from '@prisma/client';
+
 
 @Injectable()
 export class PokemonsService {
@@ -35,23 +36,37 @@ export class PokemonsService {
     }
 
     async findAll(q: ListPokemonsQuery) {
-        const { page = 1, limit = 10, search, type, abilities, sortBy = 'id', order = 'asc' } = q;
+        const {
+            page = 1,
+            limit = 10,
+            search,
+            type,
+            abilityIds,
+            sortBy = 'id',
+            order = 'asc',
+        } = q;
 
         const andClauses: Prisma.PokemonWhereInput[] = [];
-        if (search) andClauses.push({ name: { contains: search, mode: 'insensitive' } });
-        if (type)   andClauses.push({ type });
 
-        if (abilities?.length) {
-            for (const ab of abilities) {
-                andClauses.push({
-                    abilities: {
-                        some: { ability: { name: { equals: ab, mode: 'insensitive' } } },
-                    },
-                });
-            }
+        if (search) {
+            andClauses.push({
+                name: { contains: search, mode: 'insensitive' as const },
+            });
         }
 
-        const where: Prisma.PokemonWhereInput = andClauses.length ? { AND: andClauses } : {};
+        if (type) {
+            andClauses.push({ type });
+        }
+
+        if (abilityIds?.length) {
+            andClauses.push({
+                abilities: { some: { abilityId: { in: abilityIds } } },
+            });
+
+        }
+
+        const where: Prisma.PokemonWhereInput | undefined =
+            andClauses.length ? { AND: andClauses } : undefined;
 
         const [total, items] = await this.prisma.$transaction([
             this.prisma.pokemon.count({ where }),
@@ -72,6 +87,7 @@ export class PokemonsService {
             totalPages: Math.ceil(total / limit),
         };
     }
+
 
     async findOne(id: number) {
         const pokemon = await this.prisma.pokemon.findUnique({

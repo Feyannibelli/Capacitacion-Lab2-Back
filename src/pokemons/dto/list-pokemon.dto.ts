@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PokemonType } from '@prisma/client';
-import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min, IsArray } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class ListPokemonsQuery {
@@ -21,17 +21,23 @@ export class ListPokemonsQuery {
     type?: PokemonType;
 
     @ApiPropertyOptional({
-        type: [String],
-        description:  'Filtrar por una o varias habilidades (case-insensitive). Ej: abilities=Overgrow&abilities=Blaze',
-        example: ['Overgrow', 'Blaze'],
+        type: [Number],
+        description: 'IDs de habilidades. Ej: abilityIds=1,2 o abilityIds=1&abilityIds=2',
+        example: [1, 2],
     })
     @IsOptional()
+    @IsArray()
     @Transform(({ value }) => {
-        if (Array.isArray(value)) return value;
-        if (typeof value === 'string') return value.split(',').map(s => s.trim()).filter(Boolean);
-        return undefined;
+        if (value === undefined || value === null) return undefined;
+        const raw = Array.isArray(value) ? value : [value];
+        const nums = raw
+            .flatMap(v => String(v).split(','))
+            .map(s => Number(String(s).trim()))
+            .filter(n => Number.isFinite(n));
+        return nums.length ? nums : undefined;
     })
-    abilities?: string[];
+    @IsInt({ each: true })
+    abilityIds?: number[];
 
     @ApiPropertyOptional({ enum: ['id','name','type'], default: 'id' })
     @IsOptional() @IsIn(['id','name','type'])
