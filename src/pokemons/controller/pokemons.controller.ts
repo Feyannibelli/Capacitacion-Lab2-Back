@@ -3,7 +3,17 @@ import { PokemonsService } from "../service/pokemons.service";
 import { CreatePokemonDto } from "../dto/create-pokemon.dto";
 import { UpdatePokemonDto } from "../dto/update-pokemon.dto";
 import { ListPokemonsQuery } from "../dto/list-pokemon.dto";
-import { ApiBadRequestResponse, ApiConflictResponse, ApiCreatedResponse, ApiNotFoundResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse, ApiSecurity } from '@nestjs/swagger';
+import {
+    ApiBadRequestResponse,
+    ApiConflictResponse,
+    ApiCreatedResponse,
+    ApiNotFoundResponse,
+    ApiOkResponse,
+    ApiTags,
+    ApiUnauthorizedResponse,
+    ApiSecurity,
+    ApiQuery
+} from '@nestjs/swagger';
 import { ApiKeyGuard} from "../../shared/api-key.guard";
 
 @ApiTags('pokemons')
@@ -54,5 +64,13 @@ export class PokemonsController {
     @ApiUnauthorizedResponse()
     remove(@Param('id', ParseIntPipe) id: number) {
         return this.service.remove(id);
+    }
+
+    @Get('abilities')
+    @ApiOkResponse({ description: 'Listar pokemons filtrando por habilidades' })
+    @ApiQuery({ name: 'abilities', required: true, isArray: true, type: String, description: 'abilities=Overgrow&abilities=Blaze' })
+    listByAbilities(@Query('abilities') abilities: string[] | string) {
+        const arr = Array.isArray(abilities) ? abilities : [abilities];
+        return this.service.findAll({ abilities: arr, page: 1, limit: 10 });
     }
 }

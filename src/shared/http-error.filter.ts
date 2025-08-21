@@ -1,6 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from '@nestjs/common';
 
-// Captura excepciones HTTP lanzadas en controladores/servicios
 @Catch(HttpException)
 export class HttpErrorFilter implements ExceptionFilter {
     catch(exception: HttpException, host: ArgumentsHost) {
@@ -11,7 +10,7 @@ export class HttpErrorFilter implements ExceptionFilter {
         const message = typeof response === 'object' && response.message ? response.message : exception.message;
 
         res.status(status).json({
-            statusCode: status,                        //codigo http
+            statusCode: status,
             message,
             error: response.error || exception.name,
         });
