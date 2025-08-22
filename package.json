@@ -25,7 +25,9 @@
     "prisma:generate": "prisma generate",
     "prisma:dev": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down -v"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

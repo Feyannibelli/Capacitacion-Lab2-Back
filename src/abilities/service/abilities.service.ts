@@ -1,17 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { AbilitiesRepository } from '../repository/abilities.repository';
 
 @Injectable()
 export class AbilitiesService {
-    constructor(private prisma: PrismaService) {}
+    constructor(private repo: AbilitiesRepository) {}
 
-    async getAbilitiesByIds(ids?: number[]) {
-        const where = ids?.length ? { id: { in: ids } } : {};
-        return this.prisma.ability.findMany({ where, orderBy: { id: 'asc' } });
+    getAbilitiesByIds(ids?: number[]) {
+        return this.repo.findManyByIds(ids);
     }
 
     async getAbilityById(id: number) {
-        const ability = await this.prisma.ability.findUnique({ where: { id } });
+        const ability = await this.repo.findById(id);
         if (!ability) throw new NotFoundException('Ability not found');
         return ability;
     }

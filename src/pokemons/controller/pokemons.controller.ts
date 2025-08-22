@@ -36,32 +36,15 @@ export class PokemonsController {
 
     @Get('abilities/:id')
     @ApiOkResponse({ description: 'Listar pokemons filtrando por IDs de habilidades' })
-    @ApiParam({ name: 'id', type: Number, description: 'ID de habilidad obligatorio' })
+    @ApiParam({ name: 'id', type: Number })
     @ApiQuery({
-        name: 'ids',
-        required: false,
-        description: 'IDs adicionales (opcionales). Ej: ids=2,3 o ids=2&ids=3',
-        schema: {
-            oneOf: [
-                { type: 'string', example: '2,3' },
-                { type: 'array', items: { type: 'integer' }, example: [2, 3] }
-            ]
-        }
+        name: 'ids', required: false,
+        schema: { oneOf: [{ type: 'string', example: '2,3' }, { type: 'array', items: { type: 'integer' }, example: [2,3] }] }
     })
-    listByAbilityIds(
-        @Param('id', ParseIntPipe) id: number,
-        @Query('ids') ids?: string | string[]
-    ) {
+    listByAbilityIds(@Param('id', ParseIntPipe) id: number, @Query('ids') ids?: string | string[]) {
         const raw = ids === undefined ? [] : (Array.isArray(ids) ? ids : [ids]);
-        const extra = raw
-            .flatMap(v => String(v).split(','))
-            .map(s => Number(String(s).trim()))
-            .filter(n => Number.isFinite(n));
+        const extra = raw.flatMap(v => String(v).split(',')).map(s => Number(String(s).trim())).filter(Number.isFinite);
         const all = [id, ...extra];
-
-        if (!all.length) {
-            throw new BadRequestException('At least one ability id is required');
-        }
         return this.service.findAll({ abilityIds: all, page: 1, limit: 10 });
     }
 

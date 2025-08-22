@@ -12,7 +12,6 @@ export class AbilitiesController {
     @ApiQuery({
         name: 'ids',
         required: false,
-        description: 'Filtrar por IDs. Ej: ids=1,2 o ids=1&ids=2',
         schema: {
             oneOf: [
                 { type: 'string', example: '1,2' },

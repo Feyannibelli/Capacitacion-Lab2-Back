@@ -1,63 +1,56 @@
-import { ConflictException, Injectable,NotFoundException } from "@nestjs/common";
-import { PrismaService} from "../../prisma/prisma.service";
-import { CreatePokemonDto} from "../dto/create-pokemon.dto";
-import { UpdatePokemonDto } from "../dto/update-pokemon.dto";
-import { ListPokemonsQuery  } from "../dto/list-pokemon.dto";
-import { Prisma } from '@prisma/client';
-
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { PokemonsRepository } from '../repository/pokemons.repository';
+import { CreatePokemonDto } from '../dto/create-pokemon.dto';
+import { UpdatePokemonDto } from '../dto/update-pokemon.dto';
+import { ListPokemonsQuery } from '../dto/list-pokemon.dto';
+import { Prisma, PokemonType } from '@prisma/client';
 
 @Injectable()
 export class PokemonsService {
-    constructor(private prisma: PrismaService) {}
+    constructor(private repo: PokemonsRepository) {}
 
-    async create(dto: CreatePokemonDto){
-        const exists = await this.prisma.pokemon.findFirst({
-            where: {name : { equals: dto.name, mode: 'insensitive' } },
-        });
-        if (exists) throw new ConflictException("Pokemon name already exists");
+    async create(dto: CreatePokemonDto) {
+        const exists = await this.repo.findByNameInsensitive(dto.name);
+        if (exists) throw new ConflictException('Pokemon name already exists');
 
-        const connectAbilities = dto.abilities?.length
-            ? await this.prepareAbilities(dto.abilities)
-            : [];
+        // upsert abilities by name (si las pasás por nombre)
+        const abilityCreates = [];
+        if (dto.abilities?.length) {
+            for (const raw of Array.from(new Set(dto.abilities.map(a => a.trim()).filter(Boolean)))) {
+                const found = await this.repo.findAbilityByNameInsensitive(raw);
+                const abilityId = found ? found.id : (await this.repo.createAbility(raw)).id;
+                abilityCreates.push({ ability: { connect: { id: abilityId } } });
+            }
+        }
 
-        return this.prisma.pokemon.create({
-            data: {
-                name: dto.name,
-                type: dto.type,
-                height: dto.height,
-                weight: dto.weight,
-                imageUrl: dto.imageUrl,
-                abilities: connectAbilities.length
-                    ? { create: connectAbilities.map(a => ({ abilityId: a.id })) }
-                    : undefined,
-            },
-            include: { abilities: { include: { ability: true } } },
+        return this.repo.create({
+            name: dto.name,
+            type: dto.type as PokemonType,
+            height: dto.height,
+            weight: dto.weight,
+            imageUrl: dto.imageUrl,
+            ...(abilityCreates.length ? { abilities: { create: abilityCreates } } : {}),
         });
     }
 
     async findAll(q: ListPokemonsQuery) {
         const { page = 1, limit = 10, search, type, abilityIds, sortBy = 'id', order = 'asc' } = q;
 
-        const andClauses: Prisma.PokemonWhereInput[] = [];
-        if (search) andClauses.push({ name: { contains: search, mode: 'insensitive' } });
-        if (type)   andClauses.push({ type });
-
+        const and: Prisma.PokemonWhereInput[] = [];
+        if (search) and.push({ name: { contains: search, mode: 'insensitive' } });
+        if (type)   and.push({ type });
         if (abilityIds?.length) {
-            andClauses.push({
-                abilities: { some: { abilityId: { in: abilityIds } } },
-            });
+            and.push({ abilities: { some: { abilityId: { in: abilityIds } } } });
         }
 
-        const where: Prisma.PokemonWhereInput = andClauses.length ? { AND: andClauses } : {};
-
-        const [total, items] = await this.prisma.$transaction([
-            this.prisma.pokemon.count({ where }),
-            this.prisma.pokemon.findMany({
+        const where = and.length ? { AND: and } : {};
+        const [total, items] = await Promise.all([
+            this.repo.count(where),
+            this.repo.findMany({
                 where,
                 orderBy: { [sortBy]: order },
                 skip: (page - 1) * limit,
                 take: limit,
-                include: { abilities: { include: { ability: true } } },
             }),
         ]);
 
@@ -65,68 +58,45 @@ export class PokemonsService {
     }
 
     async findOne(id: number) {
-        const pokemon = await this.prisma.pokemon.findUnique({
-            where: { id },
-            include : { abilities: { include: { ability: true } } },
-        });
-        if (!pokemon) throw new NotFoundException("Pokemon not found");
+        const pokemon = await this.repo.findById(id);
+        if (!pokemon) throw new NotFoundException('Pokemon not found');
         return pokemon;
     }
 
     async update(id: number, dto: UpdatePokemonDto) {
-        await this.ensureExists(id);
+        const exists = await this.repo.findById(id);
+        if (!exists) throw new NotFoundException('Pokemon not found');
 
         if (dto.name) {
-            const dup = await this.prisma.pokemon.findFirst({
-                where : { id: { not: id }, name: { equals:dto.name, mode: 'insensitive' } },
-            });
-            if (dup) throw new ConflictException("Pokemon name already exists");
+            const dup = await this.repo.findByNameInsensitiveExcludingId(dto.name, id);
+            if (dup) throw new ConflictException('Pokemon name already exists');
         }
 
-        let abilitiesData;
+        let abilitiesData: Prisma.PokemonAbilityUpdateManyWithoutPokemonNestedInput | undefined;
         if (dto.abilities) {
-            const abilities = await this.prepareAbilities(dto.abilities);
-            abilitiesData = {
-                deleteMany: {},
-                create: abilities.map (a => ({ abilityId: a.id})),
+            const abilityCreates = [];
+            for (const raw of Array.from(new Set(dto.abilities.map(a => a.trim()).filter(Boolean)))) {
+                const found = await this.repo.findAbilityByNameInsensitive(raw);
+                const abilityId = found ? found.id : (await this.repo.createAbility(raw)).id;
+                abilityCreates.push({ ability: { connect: { id: abilityId } } });
             }
+            abilitiesData = { deleteMany: {}, create: abilityCreates };
         }
 
-        return this.prisma.pokemon.update({
-            where: { id },
-            data: {
-                name: dto.name,
-                type: dto.type,
-                height: dto.height,
-                weight: dto.weight,
-                imageUrl: dto.imageUrl,
-                ...(abilitiesData && { abilities: abilitiesData }),
-            },
-            include: { abilities: { include: { ability: true } } },
+        return this.repo.update(id, {
+            name: dto.name,
+            type: dto.type as PokemonType,
+            height: dto.height,
+            weight: dto.weight,
+            imageUrl: dto.imageUrl,
+            ...(abilitiesData ? { abilities: abilitiesData } : {}),
         });
     }
 
     async remove(id: number) {
-        await this.ensureExists(id);
-        await this.prisma.pokemon.delete({ where: { id } });
-        return { delete:  true};
-    }
-
-    private async ensureExists(id: number) {
-        const found = await this.prisma.pokemon.findUnique({ where :{ id } });
-        if (!found) throw new NotFoundException("Pokemon not found");
-    }
-
-    private async prepareAbilities(names: string[]) {
-        const normalized = Array.from(new Set(names.map(n => n.trim()).filter(Boolean)));
-        const abilities = [];
-        for (const name of normalized) {
-            const existing = await this.prisma.ability.findFirst({
-                where: { name: { equals: name, mode: 'insensitive' } },
-            });
-            if (existing) abilities.push(existing);
-            else abilities.push(await this.prisma.ability.create({ data: { name }}));
-        }
-        return abilities;
+        const exists = await this.repo.findById(id);
+        if (!exists) throw new NotFoundException('Pokemon not found');
+        await this.repo.delete(id);
+        return { deleted: true };
     }
 }
