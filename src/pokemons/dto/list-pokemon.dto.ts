@@ -30,8 +30,7 @@ export class ListPokemonsQuery {
     @Transform(({ value }) => {
         if (value === undefined || value === null) return undefined;
         const raw = Array.isArray(value) ? value : [value];
-        const nums = raw
-            .flatMap(v => String(v).split(','))
+        const nums = raw.flatMap(v => String(v).split(','))
             .map(s => Number(String(s).trim()))
             .filter(n => Number.isFinite(n));
         return nums.length ? nums : undefined;

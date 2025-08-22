@@ -1,18 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import {
+    BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete,
+    Query, ParseIntPipe, UseGuards
+} from '@nestjs/common';
 import { PokemonsService } from "../service/pokemons.service";
 import { CreatePokemonDto } from "../dto/create-pokemon.dto";
 import { UpdatePokemonDto } from "../dto/update-pokemon.dto";
 import { ListPokemonsQuery } from "../dto/list-pokemon.dto";
 import {
-    ApiBadRequestResponse,
-    ApiConflictResponse,
-    ApiCreatedResponse,
-    ApiNotFoundResponse,
-    ApiOkResponse,
-    ApiTags,
-    ApiUnauthorizedResponse,
-    ApiSecurity,
-    ApiQuery
+    ApiBadRequestResponse, ApiConflictResponse, ApiCreatedResponse, ApiNotFoundResponse,
+    ApiOkResponse, ApiTags, ApiUnauthorizedResponse, ApiSecurity, ApiQuery, ApiParam
 } from '@nestjs/swagger';
 import { ApiKeyGuard } from "../../shared/api-key.guard";
 
@@ -36,6 +32,37 @@ export class PokemonsController {
     @ApiOkResponse({ description: 'List with pagination envelope' })
     list(@Query() q: ListPokemonsQuery) {
         return this.service.findAll(q);
+    }
+
+    @Get('abilities/:id')
+    @ApiOkResponse({ description: 'Listar pokemons filtrando por IDs de habilidades' })
+    @ApiParam({ name: 'id', type: Number, description: 'ID de habilidad obligatorio' })
+    @ApiQuery({
+        name: 'ids',
+        required: false,
+        description: 'IDs adicionales (opcionales). Ej: ids=2,3 o ids=2&ids=3',
+        schema: {
+            oneOf: [
+                { type: 'string', example: '2,3' },
+                { type: 'array', items: { type: 'integer' }, example: [2, 3] }
+            ]
+        }
+    })
+    listByAbilityIds(
+        @Param('id', ParseIntPipe) id: number,
+        @Query('ids') ids?: string | string[]
+    ) {
+        const raw = ids === undefined ? [] : (Array.isArray(ids) ? ids : [ids]);
+        const extra = raw
+            .flatMap(v => String(v).split(','))
+            .map(s => Number(String(s).trim()))
+            .filter(n => Number.isFinite(n));
+        const all = [id, ...extra];
+
+        if (!all.length) {
+            throw new BadRequestException('At least one ability id is required');
+        }
+        return this.service.findAll({ abilityIds: all, page: 1, limit: 10 });
     }
 
     @Get(':id')
@@ -64,26 +91,5 @@ export class PokemonsController {
     @ApiUnauthorizedResponse()
     remove(@Param('id', ParseIntPipe) id: number) {
         return this.service.remove(id);
-    }
-
-    @Get('abilities')
-    @ApiOkResponse({ description: 'Listar pokemons filtrando por IDs de habilidades' })
-    @ApiQuery({
-        name: 'abilityIds',
-        required: true,
-        schema: {
-            oneOf: [
-                { type: 'string', example: '1,2' },
-                { type: 'array', items: { type: 'integer' }, example: [1, 2] }
-            ]
-        }
-    })
-    listByAbilityIds(@Query('abilityIds') abilityIds: string | string[]) {
-        const raw = Array.isArray(abilityIds) ? abilityIds : [abilityIds];
-        const ids = raw
-            .flatMap(v => String(v).split(','))
-            .map(s => Number(String(s).trim()))
-            .filter(n => Number.isFinite(n));
-        return this.service.findAll({ abilityIds: ids, page: 1, limit: 10 });
     }
 }

@@ -1,6 +1,6 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { AbilitiesService } from '../service/abilities.service';
-import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiQuery, ApiTags, ApiParam } from '@nestjs/swagger';
 
 @ApiTags('abilities')
 @Controller('abilities')
@@ -12,24 +12,25 @@ export class AbilitiesController {
     @ApiQuery({
         name: 'ids',
         required: false,
+        description: 'Filtrar por IDs. Ej: ids=1,2 o ids=1&ids=2',
         schema: {
             oneOf: [
                 { type: 'string', example: '1,2' },
-                { type: 'array', items: { type: 'integer' }, example: [1, 2] }
+                { type: 'array', items: { type: 'integer' }, example: [1,2] }
             ]
         }
     })
     list(@Query('ids') ids?: string | string[]) {
-        const raw = ids === undefined ? undefined : (Array.isArray(ids) ? ids : [ids]);
-        const parsed = raw?.flatMap(v => String(v).split(','))
+        const raw = ids === undefined ? [] : (Array.isArray(ids) ? ids : [ids]);
+        const parsed = raw.flatMap(v => String(v).split(','))
             .map(s => Number(String(s).trim()))
             .filter(n => Number.isFinite(n));
-        return this.service.getAbilitiesByIds(parsed?.length ? parsed : undefined);
+        return this.service.getAbilitiesByIds(parsed.length ? parsed : undefined);
     }
 
-    // GET /abilities/:id
     @Get(':id')
-    @ApiOkResponse()
+    @ApiOkResponse({ description: 'Get ability by id' })
+    @ApiParam({ name: 'id', type: Number })
     getOne(@Param('id', ParseIntPipe) id: number) {
         return this.service.getAbilityById(id);
     }

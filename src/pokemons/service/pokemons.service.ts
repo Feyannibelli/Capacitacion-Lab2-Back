@@ -36,37 +36,19 @@ export class PokemonsService {
     }
 
     async findAll(q: ListPokemonsQuery) {
-        const {
-            page = 1,
-            limit = 10,
-            search,
-            type,
-            abilityIds,
-            sortBy = 'id',
-            order = 'asc',
-        } = q;
+        const { page = 1, limit = 10, search, type, abilityIds, sortBy = 'id', order = 'asc' } = q;
 
         const andClauses: Prisma.PokemonWhereInput[] = [];
-
-        if (search) {
-            andClauses.push({
-                name: { contains: search, mode: 'insensitive' as const },
-            });
-        }
-
-        if (type) {
-            andClauses.push({ type });
-        }
+        if (search) andClauses.push({ name: { contains: search, mode: 'insensitive' } });
+        if (type)   andClauses.push({ type });
 
         if (abilityIds?.length) {
             andClauses.push({
                 abilities: { some: { abilityId: { in: abilityIds } } },
             });
-
         }
 
-        const where: Prisma.PokemonWhereInput | undefined =
-            andClauses.length ? { AND: andClauses } : undefined;
+        const where: Prisma.PokemonWhereInput = andClauses.length ? { AND: andClauses } : {};
 
         const [total, items] = await this.prisma.$transaction([
             this.prisma.pokemon.count({ where }),
@@ -79,15 +61,8 @@ export class PokemonsService {
             }),
         ]);
 
-        return {
-            items,
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-        };
+        return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
     }
-
 
     async findOne(id: number) {
         const pokemon = await this.prisma.pokemon.findUnique({
