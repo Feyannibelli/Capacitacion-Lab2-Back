@@ -8,7 +8,25 @@ import { HttpErrorFilter } from './shared/http-error.filter';
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
-    //asegurar que todas las request cumplan los DTOs
+    app.enableCors({
+        origin: [
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'http://localhost:4173',
+
+        ],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'x-api-key',
+            'Accept',
+            'Origin',
+            'X-Requested-With'
+        ],
+        credentials: true,
+    });
+
     app.useGlobalPipes(new ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
@@ -16,26 +34,29 @@ async function bootstrap() {
         transformOptions: { enableImplicitConversion: true },
     }));
 
-    //filtros globales para la consistencia de los erroers
     app.useGlobalFilters(
         new PrismaClientExceptionFilter(),
         new HttpErrorFilter(),
     );
 
-    //configuracion de Swagger
     const config = new DocumentBuilder()
-    .setTitle('Pokémon API')
-    .setDescription('CRUD, paginacion, filtros y habilidades')
-    .setVersion('1.0.0')
-    .addApiKey(
-        { type: 'apiKey', name: 'x-api-key', in: 'header' },
-        'api-key',
-    )
-    .build();
+        .setTitle('Pokémon API')
+        .setDescription('CRUD, paginacion, filtros y habilidades')
+        .setVersion('1.0.0')
+        .addApiKey(
+            { type: 'apiKey', name: 'x-api-key', in: 'header' },
+            'api-key',
+        )
+        .build();
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('/docs', app, document);
 
-    await app.listen(process.env.PORT || 3000);
+    const port = process.env.PORT || 3000;
+    await app.listen(port);
+
+    console.log(`🚀 Server is running on: http://localhost:${port}`);
+    console.log(`📚 API Documentation: http://localhost:${port}/docs`);
 }
+
 bootstrap();
